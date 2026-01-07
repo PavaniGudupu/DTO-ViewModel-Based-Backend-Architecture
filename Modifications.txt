@@ -1,0 +1,122 @@
+✅ STEP 1: Define Product ViewModel
+📁 viewModels/product.viewModel.js
+export const ProductViewModel = {
+  productId: null,
+  productName: null,
+  categoryId: null,
+  categoryName: null,
+  mrp: null,
+  sp: null,
+  cp: null,
+  classification: null,
+  size: null
+};
+
+Why this file exists
+Acts as frontend contract
+UI knows exactly what it will receive
+DB changes won’t affect frontend
+
+✅ STEP 2: Create ViewModel Mapper
+📁 utils/viewModelMapper.js
+export const mapToViewModel = (dbRow, viewModel) => {
+  const output = {};
+
+  for (const key in viewModel) {
+    if (dbRow[key] !== undefined) {
+      output[key] = dbRow[key];
+    }
+  }
+
+  return output;
+};
+
+⚠️ WAIT — DB column names don’t match ViewModel keys
+So we need explicit mapping (important concept).
+
+✅ STEP 3: Explicit DB → ViewModel Mapping
+📁 utils/productViewModelMapper.js
+export const mapProductToViewModel = (dbRow) => {
+  return {
+    productId: dbRow.id,
+    productName: dbRow.product_name,
+    categoryId: dbRow.category_id,
+    categoryName: dbRow.category,
+    mrp: dbRow.mrp,
+    sp: dbRow.sp,
+    cp: dbRow.cp,
+    classification: dbRow.classification,
+    size: dbRow.size
+  };
+};
+
+WHY explicit mapping is GOOD
+Renaming DB columns doesn’t break UI
+You control output format
+Easy debugging
+This is real industry practice.
+
+✅ STEP 4: Use ViewModel in Controller (OUTPUT SIDE)
+BEFORE ❌
+res.json(success(products));
+
+AFTER ✅
+import { mapProductToViewModel } from "../utils/productViewModelMapper.js";
+
+app.post("/ProductList", async (req, res) => {
+  try {
+    const products = await productModel.getFilteredProducts(req.body);
+
+    const viewModels = products.map(mapProductToViewModel);
+
+    res.json(success(viewModels));
+  } catch (error) {
+    res.status(500).json(failure(error.message));
+  }
+});
+
+
+🔄 SINGLE PRODUCT (Edit / Get By ID)
+const product = await productModel.getProductById(id);
+
+if (!product) {
+  return res.status(404).json(failure("Product not found"));
+}
+
+res.json(success(mapProductToViewModel(product)));
+
+
+🔁 FINAL FLOW (NOW COMPLETE)
+INPUT
+Request (Frontend)
+   ↓
+ViewModel (Request)
+   ↓
+DTO
+   ↓
+Repository
+   ↓
+Database
+
+OUTPUT
+Database
+   ↓
+DTO (Raw DB Row)
+   ↓
+ViewModel Mapper
+   ↓
+Response
+
+
+🧠 IMPORTANT CLARIFICATION (VERY IMPORTANT)
+Request ViewModel vs Response ViewModel
+You can reuse or separate them:
+Simple apps (OK for now)
+Request ViewModel == Response ViewModel
+
+Large apps (later)
+CreateProductViewModel
+UpdateProductViewModel
+ProductResponseViewModel
+
+👉 Do NOT over-engineer now.
